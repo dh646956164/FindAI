@@ -1,4 +1,4 @@
-import { curatedStrengths, selectedToolSlugSet, taskRecommendations } from "@/lib/curated";
+import { compareNationalUsage, curatedStrengths, selectedToolSlugSet, sortByNationalUsage, taskRecommendations } from "@/lib/curated";
 
 export type CatalogTool = {
   name: string;
@@ -241,24 +241,24 @@ export const catalogTools: CatalogTool[] = allCatalogTools.filter((tool) => sele
     bestFor: matchedTasks.length ? matchedTasks.map((task) => `${task.label}：${task.description}`) : tool.bestFor,
     isFeatured: true,
   };
-});
+}).sort(compareNationalUsage);
 
-export const featuredTools = catalogTools.filter((tool) => tool.isFeatured).sort((a, b) => b.recommendationLevel - a.recommendationLevel);
+export const featuredTools = catalogTools.filter((tool) => tool.isFeatured).sort(compareNationalUsage);
 
 export const comparisonsSeed = [
-  ["Kimi vs 通义千问 vs 豆包", "writing-assistants", ["Kimi", "通义千问", "豆包"], "中文材料写作"],
-  ["WPS AI vs 讯飞智文 vs 百度文库 AI", "ppt-tools", ["WPS AI", "讯飞智文", "百度文库 AI"], "AI 生成 PPT"],
-  ["Trae vs 通义灵码 vs DeepSeek", "coding-tools", ["Trae", "通义灵码", "DeepSeek"], "AI 编程"],
-  ["Dify vs 扣子 Coze vs 国家开放大学 AI 基座平台", "agent-platforms", ["Dify", "扣子 Coze", "国家开放大学 AI 基座平台"], "智能体搭建"],
+  ["豆包 vs 通义千问 vs Kimi", "writing-assistants", ["豆包", "通义千问", "Kimi"], "中文材料写作"],
+  ["WPS AI vs 百度文库 AI vs 讯飞智文", "ppt-tools", ["WPS AI", "百度文库 AI", "讯飞智文"], "AI 生成 PPT"],
+  ["DeepSeek vs Trae vs 通义灵码", "coding-tools", ["DeepSeek", "Trae", "通义灵码"], "AI 编程"],
+  ["扣子 Coze vs Dify vs 国家开放大学 AI 基座平台", "agent-platforms", ["扣子 Coze", "Dify", "国家开放大学 AI 基座平台"], "智能体搭建"],
   ["即梦 AI vs 通义万相 vs LiblibAI", "image-generation", ["即梦 AI", "通义万相", "LiblibAI"], "图片生成"],
-  ["可灵 AI vs 即梦 AI vs 海螺 AI 视频", "video-generation", ["可灵 AI", "即梦 AI", "海螺 AI 视频"], "视频生成"],
+  ["即梦 AI vs 可灵 AI vs 海螺 AI 视频", "video-generation", ["即梦 AI", "可灵 AI", "海螺 AI 视频"], "视频生成"],
   ["秘塔 AI 搜索 vs Kimi Deep Research", "ai-search", ["秘塔 AI 搜索", "Kimi Deep Research"], "搜索与研究"],
 ] as const;
 
 export const useCasesSeed = taskRecommendations.map((task) => ({
   title: task.label, slug: task.slug, scenario: task.label,
   description: task.description,
-  recommendedTools: task.tools.map(({ slug }) => catalogTools.find((tool) => tool.slug === slug)?.name).filter((name): name is string => Boolean(name)),
+  recommendedTools: sortByNationalUsage(task.tools).map(({ slug }) => catalogTools.find((tool) => tool.slug === slug)?.name).filter((name): name is string => Boolean(name)),
   freeSolution: "先使用产品免费额度完成小规模验证。", domesticSolution: "优先选择中文体验完整、使用入口清晰并支持本地支付的产品。",
   strongestSolution: "组合专业工具与高能力模型，并保留人工复核环节。", lowCostSolution: "使用开源模型或按量 API，设置预算上限。",
   governmentEducationSolution: "优先选择可签署数据协议、支持私有化或机构采购的国内服务。",

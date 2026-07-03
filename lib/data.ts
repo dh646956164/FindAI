@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { catalogTools, comparisonsSeed, newsSeed, rankingSeeds, useCasesSeed, type CatalogTool } from "@/lib/catalog";
-import { selectedToolSlugSet, taskRecommendations } from "@/lib/curated";
+import { compareNationalUsage, selectedToolSlugSet, sortByNationalUsage, taskRecommendations } from "@/lib/curated";
 import toolIntelligence from "@/data/tool-intelligence.json";
 
 export type ToolView = CatalogTool & {
@@ -60,7 +60,8 @@ export async function getTools(filters: ToolFilters = {}): Promise<ToolView[]> {
       },
       orderBy: sort === "name" ? { name: "asc" } : sort === "updated" ? { updatedAt: "desc" } : { recommendationLevel: "desc" },
     });
-    return (tools as unknown as ToolView[]).filter((tool) => selectedToolSlugSet.has(tool.slug));
+    const selected = (tools as unknown as ToolView[]).filter((tool) => selectedToolSlugSet.has(tool.slug));
+    return sort === "name" ? selected.sort((a, b) => a.name.localeCompare(b.name, "zh-CN")) : sort === "updated" ? selected.sort((a, b) => +b.updatedAt - +a.updatedAt) : selected.sort(compareNationalUsage);
   } catch {
     return filterFallbackTools(filters);
   }
@@ -85,12 +86,15 @@ export async function getRankings() {
   if (!staticExport) {
   try {
     const results = await prisma.ranking.findMany({ include: { items: { include: { tool: true, model: true }, orderBy: { rank: "asc" } } }, orderBy: { createdAt: "asc" } });
-    if (results.length) return results;
+    if (results.length) return results.map((ranking) => ({
+      ...ranking,
+      items: [...ranking.items].sort((a, b) => a.tool && b.tool ? compareNationalUsage(a.tool, b.tool) : a.rank - b.rank).map((item, index) => ({ ...item, rank: index + 1 })),
+    }));
   } catch { /* fallback below */ }
   }
   return rankingSeeds.map(([title, slug, description], rankingIndex) => ({
     id: `ranking-${rankingIndex}`, title, slug, description, category: title.replace("榜", ""), createdAt: new Date(), updatedAt: new Date(),
-    items: (taskRecommendations.find((task) => task.slug === slug)?.tools || []).map((selection, index) => ({ id: `${slug}-${index}`, rank: index + 1, score: 97 - index * 2, reason: selection.reason, tool: fallbackTools.find((tool) => tool.slug === selection.slug) || null, model: null })),
+    items: sortByNationalUsage(taskRecommendations.find((task) => task.slug === slug)?.tools || []).map((selection, index) => ({ id: `${slug}-${index}`, rank: index + 1, score: 97 - index * 2, reason: selection.reason, tool: fallbackTools.find((tool) => tool.slug === selection.slug) || null, model: null })),
   }));
 }
 
@@ -133,5 +137,5 @@ function filterFallbackTools({ q, category, access, pricing, capability, audienc
     return (!term || searchable.includes(term)) && (!category || tool.category === category) && (!access || tool.domesticAccessibility === access)
       && (!pricing || tool.pricingModel === pricing) && (!capability || Boolean((tool as unknown as Record<string, unknown>)[capability]))
       && (!audience || tool.targetUsers.includes(audience));
-  }).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "zh-CN") : sort === "updated" ? +b.updatedAt - +a.updatedAt : b.recommendationLevel - a.recommendationLevel);
+  }).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "zh-CN") : sort === "updated" ? +b.updatedAt - +a.updatedAt : compareNationalUsage(a, b));
 }

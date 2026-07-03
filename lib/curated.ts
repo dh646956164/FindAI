@@ -74,6 +74,26 @@ export const taskRecommendations: TaskRecommendation[] = [
 export const selectedToolSlugs = [...new Set(taskRecommendations.flatMap((task) => task.tools.map((tool) => tool.slug)))];
 export const selectedToolSlugSet = new Set(selectedToolSlugs);
 
+// 前五项采用 QuestMobile 2026 年 3 月公开月活顺序；其余未披露统一 MAU 的专业工具
+// 放在已知数据之后，并按公开产品覆盖、生态规模与实际任务普及度保持稳定顺序。
+export const nationalUsageOrder = [
+  "doubao", "tongyi-qianwen", "deepseek", "jimeng-ai", "kimi",
+  "wps-ai", "dingtalk-ai", "baidu-wenku-ai", "iflyrec", "feishu-minutes",
+  "kling-ai", "coze", "trae", "tongyi-lingma", "metaso", "tongyi-wanxiang",
+  "hailuo-video", "iflytek-zhiwen", "liblibai", "kimi-deep-research", "dify",
+  "fastgpt", "ouchn-ai-base", "gsou-thesis-review",
+] as const;
+
+const nationalUsageIndex = new Map<string, number>(nationalUsageOrder.map((slug, index) => [slug, index]));
+
+export function compareNationalUsage(a: { slug: string }, b: { slug: string }) {
+  return (nationalUsageIndex.get(a.slug) ?? Number.MAX_SAFE_INTEGER) - (nationalUsageIndex.get(b.slug) ?? Number.MAX_SAFE_INTEGER);
+}
+
+export function sortByNationalUsage<T extends { slug: string }>(items: readonly T[]): T[] {
+  return [...items].sort(compareNationalUsage);
+}
+
 export const usageTipsByTool: Record<string, string[]> = {
   kimi: ["先上传原始材料，再要求按‘事实—问题—建议’输出提纲。", "长文档先做分章节摘要，最后再合并结论并核对页码。"],
   "tongyi-qianwen": ["明确文种、受众、篇幅和语气，再让模型分段生成。", "正式材料至少进行一次事实、数字和政策表述复核。"],
@@ -145,3 +165,47 @@ export const usageRankingMeta = {
   sourceName: "QuestMobile《2026 年一季度 AI 应用洞察》",
   sourceUrl: "https://www.questmobile.com.cn/research/report/2046482337382842370/",
 };
+
+export type AgentPlatform = {
+  rank: number;
+  name: string;
+  company: string;
+  officialUrl: string;
+  description: string;
+  platformType: string;
+  tags: string[];
+  usageBasis: string;
+};
+
+export const agentPlatformDirectory: AgentPlatform[] = [
+  { rank: 1, name: "扣子 Coze", company: "字节跳动", officialUrl: "https://www.coze.cn/", platformType: "零代码智能体平台", tags: ["工作流", "知识库", "插件", "发布"], usageBasis: "字节生态与大众创作入口", description: "面向个人和团队的智能体开发平台，支持提示词、知识库、插件与工作流编排，可快速完成创建、调试和发布。" },
+  { rank: 2, name: "阿里云百炼", company: "阿里云", officialUrl: "https://bailian.console.aliyun.com/", platformType: "云端 Agent 开发平台", tags: ["千问模型", "RAG", "MCP", "API"], usageBasis: "千问用户规模与阿里云覆盖", description: "提供零代码智能体、工作流、知识库、插件和 API 调用，适合从原型验证到企业系统集成。" },
+  { rank: 3, name: "腾讯元器", company: "腾讯", officialUrl: "https://yuanqi.tencent.com/", platformType: "腾讯生态智能体平台", tags: ["零代码", "公众号", "Multi-Agent", "工作流"], usageBasis: "微信与腾讯内容生态", description: "支持标准、单工作流和 Multi-Agent 模式，可连接知识库并发布至公众号、企业微信、应用宝和 API。" },
+  { rank: 4, name: "百度千帆 AppBuilder", company: "百度智能云", officialUrl: "https://cloud.baidu.com/product/ai-apaas", platformType: "AI 原生应用工作台", tags: ["零代码", "低代码", "组件", "Agent API"], usageBasis: "百度云与搜索生态覆盖", description: "提供零代码应用创建、低代码工作流和组件扩展，适合知识问答、业务助手与 AI 原生应用开发。" },
+  { rank: 5, name: "火山引擎 HiAgent", company: "火山引擎", officialUrl: "https://www.volcengine.com/product/hiagent", platformType: "企业级 Agent 平台", tags: ["MCP", "工作流", "评测", "私有化"], usageBasis: "豆包与火山引擎企业生态", description: "覆盖智能体搭建、纳管、评测、观测和企业系统接入，支持插件、MCP、知识库、工作流及私有化部署。" },
+  { rank: 6, name: "腾讯云 ADP", company: "腾讯云", officialUrl: "https://cloud.tencent.com/product/adp", platformType: "企业智能体开发平台", tags: ["Agentic RAG", "Multi-Agent", "评测", "治理"], usageBasis: "企业行业项目与腾讯云覆盖", description: "面向企业的一站式 Agent 开发与运营平台，支持 RAG、工作流、多智能体、评测、监控和权限治理。" },
+  { rank: 7, name: "华为云 AgentArts", company: "华为云", officialUrl: "https://www.huaweicloud.com/product/agentarts.html", platformType: "企业级智能体平台", tags: ["多智能体", "Skills", "MCP", "可观测"], usageBasis: "华为云政企与行业覆盖", description: "支持单智能体、工作流与多智能体协作，集成 Skills、MCP、知识库、运行观测和自动化评测。" },
+  { rank: 8, name: "讯飞星火智能体", company: "科大讯飞", officialUrl: "https://agent.xfyun.cn/home", platformType: "星火智能体开发平台", tags: ["星火模型", "知识库", "插件", "语音"], usageBasis: "教育、政企与语音生态覆盖", description: "基于讯飞星火模型提供角色配置、知识库、插件与应用发布能力，适合教育、办公和语音交互场景。" },
+  { rank: 9, name: "智谱开放平台 Agent", company: "智谱 AI", officialUrl: "https://www.bigmodel.cn/agent", platformType: "模型与智能体开发平台", tags: ["GLM", "工具调用", "知识库", "API"], usageBasis: "GLM 开发者与开放平台生态", description: "依托 GLM 模型提供智能体和工具调用能力，面向开发者完成知识增强、任务执行与 API 集成。" },
+  { rank: 10, name: "百度秒哒", company: "百度", officialUrl: "https://cloud.baidu.com/product-s/miaoda_home", platformType: "生成式应用开发平台", tags: ["无代码", "多智能体", "应用生成", "一键发布"], usageBasis: "百度生态与生成式应用覆盖", description: "通过自然语言和多智能体协作生成应用，支持在线编辑、实时预览与发布，适合快速制作网站、轻应用和业务原型。" },
+];
+
+export type HotAgentProduct = {
+  rank: number;
+  name: string;
+  company: string;
+  officialUrl: string;
+  actionLabel: string;
+  description: string;
+  tags: string[];
+  warning?: string;
+};
+
+// 面向普通用户、能够直接执行任务的 Agent，与上方的 Agent 开发平台分开展示。
+export const hotAgentProducts: HotAgentProduct[] = [
+  { rank: 1, name: "WorkBuddy", company: "腾讯", officialUrl: "https://www.workbuddy.cn/", actionLabel: "访问 / 下载", tags: ["电脑操作", "办公自动化", "多步骤任务"], description: "面向日常办公和电脑操作的桌面 Agent，可理解任务、调用本地工具并执行多步骤工作，适合资料整理、文件处理与跨应用协作。" },
+  { rank: 2, name: "OpenClaw", company: "开源社区", officialUrl: "https://github.com/openclaw/openclaw/releases/", actionLabel: "下载发行版", tags: ["开源", "本地执行", "Skills"], description: "近期活跃的开源执行型 Agent，可连接工具与 Skills 完成自动化任务，适合具备部署和安全审查能力的进阶用户。", warning: "具备较高系统权限；安装第三方 Skills 前应审查来源与代码。" },
+  { rank: 3, name: "MiniMax Agent", company: "MiniMax", officialUrl: "https://agent.minimax.io/", actionLabel: "立即使用", tags: ["通用任务", "网页执行", "内容生成"], description: "面向研究、内容制作和网页任务的通用 Agent，可围绕目标组织步骤、调用能力并交付结果。" },
+  { rank: 4, name: "Kimi 深度研究", company: "月之暗面", officialUrl: "https://www.kimi.com/features/deep-research", actionLabel: "立即使用", tags: ["深度研究", "资料检索", "报告生成"], description: "针对复杂研究问题自动拆解检索步骤、汇总来源并生成结构化报告，适合论文阅读、行业研究和材料准备。" },
+  { rank: 5, name: "扣子空间", company: "字节跳动", officialUrl: "https://www.coze.cn/", actionLabel: "立即使用", tags: ["通用 Agent", "深度研究", "任务执行"], description: "面向普通用户的任务执行入口，可围绕目标组织信息、调用工具并生成网页、报告等结果，与扣子开发平台形成互补。" },
+];

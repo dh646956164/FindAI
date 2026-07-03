@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: refresh-tool-intelligence
@@ -15,6 +17,9 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,6 +28,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Check official pages and public updates
         run: node scripts/refresh-tool-intelligence.mjs
@@ -38,3 +47,22 @@ jobs:
           git add data/tool-intelligence.json
           git commit -m "chore: refresh curated tool intelligence"
           git push
+
+      - name: Prepare static-only build
+        run: rm -rf app/admin app/api middleware.ts
+
+      - name: Build refreshed static site
+        env:
+          STATIC_EXPORT: "true"
+          NEXT_PUBLIC_STATIC_EXPORT: "true"
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+      - name: Deploy refreshed site to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

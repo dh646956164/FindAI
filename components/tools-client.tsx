@@ -30,15 +30,16 @@ export function ToolsClient({ tools: allTools }: { tools: ToolView[] }) {
   const queryForView = new URLSearchParams(Object.entries(filters).filter(([,value]) => value));
   const sourceParams = new URLSearchParams(queryForView); sourceParams.set("view", view); const sourceQuery = sourceParams.toString();
   const stateKey = params.toString();
+  const availableCategories = categories.filter((category) => allTools.some((tool) => tool.category === category));
 
   return <>
-    <section className="border-b bg-white"><div className="container py-10"><Badge className="mb-3"><SlidersHorizontal className="mr-1.5 size-3" />智能筛选</Badge><h1 className="text-3xl font-black tracking-tight md:text-4xl">AI 工具库</h1><p className="mt-3 text-muted-foreground">不是链接清单，是可检索、可比较、持续核验的工具档案。</p>
+    <section className="border-b bg-white"><div className="container py-10"><Badge className="mb-3"><SlidersHorizontal className="mr-1.5 size-3" />{allTools.length} 个精选工具</Badge><h1 className="text-balance text-3xl font-black tracking-tight md:text-4xl">少而精的 AI 工具库</h1><p className="mt-3 max-w-3xl leading-7 text-muted-foreground">围绕 13 个高频任务，每个领域仅保留 1–3 个优先选择；官方页面和公开动态每天自动核验。</p>
       <form key={`search-${stateKey}`} className="relative mt-7 max-w-3xl">{Object.entries(filters).filter(([key,value]) => key !== "q" && value).map(([key,value]) => <input key={key} type="hidden" name={key} value={value} />)}<input type="hidden" name="view" value={view} /><Search className="absolute left-4 top-3.5 size-5 text-muted-foreground" /><Input name="q" defaultValue={filters.q} className="h-12 bg-background pl-12 pr-24" placeholder="搜索工具名称、公司、场景或能力" /><Button className="absolute right-1.5 top-1.5">搜索</Button></form>
     </div></section>
     <div className="container py-8">
       <form key={`filters-${stateKey}`} className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
         {filters.q && <input type="hidden" name="q" value={filters.q} />}{filters.sort && <input type="hidden" name="sort" value={filters.sort} />}<input type="hidden" name="view" value={view} />
-        <FilterSelect name="category" label="全部分类" value={filters.category} options={categories.map((item) => [item,item])} />
+        <FilterSelect name="category" label="全部分类" value={filters.category} options={availableCategories.map((item) => [item,item])} />
         <FilterSelect name="pricing" label="价格模式" value={filters.pricing} options={Object.entries(pricingLabels)} />
         <FilterSelect name="capability" label="能力" value={filters.capability} options={capabilities} />
         <FilterSelect name="audience" label="适用人群" value={filters.audience} options={audiences.map((item) => [item,item])} />

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { catalogTools, comparisonsSeed, newsSeed, rankingSeeds, useCasesSeed, type CatalogTool } from "@/lib/catalog";
+import { selectedToolSlugSet, taskRecommendations } from "@/lib/curated";
+import toolIntelligence from "@/data/tool-intelligence.json";
 
 export type ToolView = CatalogTool & {
   id: string;
@@ -15,11 +17,26 @@ export type ToolView = CatalogTool & {
   updatedAt: Date;
 };
 
+export type ToolIntelligence = {
+  name: string;
+  sourceUrl: string;
+  lastAttemptAt: string | null;
+  lastCheckedAt: string | null;
+  httpStatus: number | null;
+  officialTitle: string;
+  officialSummary: string;
+  latestHeadline: string;
+  latestHeadlineUrl: string;
+  latestHeadlineAt: string;
+};
+
+const intelligenceBySlug = toolIntelligence.tools as Record<string, ToolIntelligence>;
+
 const fallbackTools: ToolView[] = catalogTools.map((tool, index) => ({
   ...tool, id: `fallback-${index + 1}`, logoUrl: null, requiresLogin: true, requiresPhone: false,
   supportsChinaPhone: true, supportsWechatPay: false, supportsAlipay: true,
   paidPlanDescription: "具体套餐与价格以官网最新公示为准。",
-  lastCheckedAt: new Date(Date.now() - (index % 20) * 86400000), createdAt: new Date(), updatedAt: new Date(),
+  lastCheckedAt: intelligenceBySlug[tool.slug]?.lastCheckedAt ? new Date(intelligenceBySlug[tool.slug].lastCheckedAt!) : new Date(Date.now() - (index % 3) * 86400000), createdAt: new Date(), updatedAt: new Date(),
 }));
 const staticExport = process.env.STATIC_EXPORT === "true";
 
@@ -43,13 +60,14 @@ export async function getTools(filters: ToolFilters = {}): Promise<ToolView[]> {
       },
       orderBy: sort === "name" ? { name: "asc" } : sort === "updated" ? { updatedAt: "desc" } : { recommendationLevel: "desc" },
     });
-    return tools as unknown as ToolView[];
+    return (tools as unknown as ToolView[]).filter((tool) => selectedToolSlugSet.has(tool.slug));
   } catch {
     return filterFallbackTools(filters);
   }
 }
 
 export async function getTool(slug: string): Promise<ToolView | null> {
+  if (!selectedToolSlugSet.has(slug)) return null;
   if (staticExport) return fallbackTools.find((tool) => tool.slug === slug) || null;
   try {
     return await prisma.aiTool.findUnique({ where: { slug } }) as unknown as ToolView | null;
@@ -70,18 +88,14 @@ export async function getRankings() {
     if (results.length) return results;
   } catch { /* fallback below */ }
   }
-  const picks: Record<string, string[]> = {
-    "chinese-writing": ["kimi", "tongyi-qianwen", "doubao", "deepseek", "chatglm"], "official-writing": ["tongyi-qianwen", "deepseek", "wps-ai", "iflytek-spark", "doubao"],
-    coding: ["trae", "tongyi-lingma", "deepseek-coder-api", "codegeex", "codebuddy"], "ai-search": ["metaso", "kimi-deep-research", "nami-search", "tiangong-search", "baidu-ai-search"],
-    "ai-agent": ["ouchn-ai-base", "dify", "coze", "fastgpt", "tencent-yuanqi"], image: ["jimeng-ai", "tongyi-wanxiang", "liblibai", "yige", "gaoding-ai"],
-    video: ["kling-ai", "hailuo-video", "jimeng-ai", "capcut-ai-cn", "muse-steamer"], free: ["deepseek", "doubao", "tongyi-qianwen", "kimi", "metaso"],
-    domestic: ["deepseek", "tongyi-qianwen", "doubao", "kimi", "iflytek-spark"], "education-office": ["gsou-thesis-review", "ouchn-ai-base", "wps-ai", "kimi", "tongyi-qianwen"],
-    "developer-api": ["siliconflow", "volcengine-ark", "aliyun-bailian", "deepseek-coder-api", "bigmodel"],
-  };
   return rankingSeeds.map(([title, slug, description], rankingIndex) => ({
     id: `ranking-${rankingIndex}`, title, slug, description, category: title.replace("榜", ""), createdAt: new Date(), updatedAt: new Date(),
-    items: (picks[slug] || []).map((toolSlug, index) => ({ id: `${slug}-${index}`, rank: index + 1, score: 96 - index * 2.3, reason: "中文体验、任务完成质量和使用成本表现突出。", tool: fallbackTools.find((tool) => tool.slug === toolSlug) || null, model: null })),
+    items: (taskRecommendations.find((task) => task.slug === slug)?.tools || []).map((selection, index) => ({ id: `${slug}-${index}`, rank: index + 1, score: 97 - index * 2, reason: selection.reason, tool: fallbackTools.find((tool) => tool.slug === selection.slug) || null, model: null })),
   }));
+}
+
+export function getToolIntelligence(slug: string): ToolIntelligence | null {
+  return intelligenceBySlug[slug] || null;
 }
 
 export async function getComparisons() {
@@ -100,7 +114,14 @@ export async function getUseCase(slug: string) { return (await getUseCases()).fi
 
 export async function getNews(limit?: number) {
   if (!staticExport) { try { const rows = await prisma.aiNews.findMany({ orderBy: [{ isPinned: "desc" }, { publishedAt: "desc" }], ...(limit ? { take: limit } : {}) }); if (rows.length) return rows; } catch { /* fallback */ } }
-  return newsSeed.slice(0, limit).map((item, index) => ({ ...item, id: `news-${index}`, sourceUrl: null, createdAt: new Date(), updatedAt: new Date() }));
+  const automaticNews = Object.entries(intelligenceBySlug).filter(([, item]) => item.latestHeadline && item.latestHeadlineUrl).map(([slug, item], index) => ({
+    id: `auto-news-${slug}`, title: item.latestHeadline, slug: `auto-${slug}`, source: "每日公开信息检索", summary: `${item.name} 的最新公开动态。自动聚合内容仅用于提示变化，请打开来源并结合官方说明核验。`,
+    category: "产品动态", importanceScore: 3, relatedTools: [item.name], publishedAt: item.latestHeadlineAt ? new Date(item.latestHeadlineAt) : new Date(toolIntelligence.generatedAt || Date.now()), isPinned: false,
+    sourceUrl: item.latestHeadlineUrl, createdAt: new Date(), updatedAt: new Date(),
+  })).sort((a, b) => +b.publishedAt - +a.publishedAt).slice(0, 8);
+  const editorialNews = newsSeed.map((item, index) => ({ ...item, id: `news-${index}`, sourceUrl: null, createdAt: new Date(), updatedAt: new Date() }));
+  const combined = [...automaticNews, ...editorialNews];
+  return limit ? combined.slice(0, limit) : combined;
 }
 
 export function getFallbackStats() { return { tools: fallbackTools.length, categories: new Set(fallbackTools.map((tool) => tool.category)).size }; }

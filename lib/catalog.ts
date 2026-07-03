@@ -1,3 +1,5 @@
+import { curatedStrengths, selectedToolSlugSet, taskRecommendations } from "@/lib/curated";
+
 export type CatalogTool = {
   name: string;
   slug: string;
@@ -119,6 +121,7 @@ const officialUrls: Record<string, string> = {
   "nami-search": "https://n.cn/", "quark-ai": "https://quark.cn/", "tiangong-search": "https://www.tiangong.cn/", "baidu-ai-search": "https://chat.baidu.com/",
   "wps-ai": "https://ai.wps.cn/", "wps-365": "https://365.wps.cn/", "dingtalk-ai": "https://www.dingtalk.com/", "feishu-minutes": "https://www.feishu.cn/product/minutes", "tencent-docs-ai": "https://docs.qq.com/",
   "baidu-wenku-ai": "https://wenku.baidu.com/", iflyrec: "https://www.iflyrec.com/", "processon-ai": "https://www.processon.com/",
+  "iflytek-zhiwen": "https://zhiwen.xfyun.cn/", "kimi-deep-research": "https://www.kimi.com/features/deep-research",
   "jimeng-ai": "https://jimeng.jianying.com/", "tongyi-wanxiang": "https://tongyi.aliyun.com/wanxiang/", "hailuo-video": "https://hailuoai.com/video", "hunyuan-image": "https://hunyuan.tencent.com/", yige: "https://yige.baidu.com/", liblibai: "https://www.liblib.art/",
   "tongyi-lingma": "https://lingma.aliyun.com/", codegeex: "https://codegeex.cn/", "fitten-code": "https://code.fittentech.com/", codebuddy: "https://copilot.tencent.com/", "baidu-comate": "https://comate.baidu.com/", "deepseek-coder-api": "https://platform.deepseek.com/",
   "ouchn-ai-base": "https://ai.ouchn.edu.cn/agentcenter", "gsou-thesis-review": "http://43.136.179.58/",
@@ -204,9 +207,11 @@ const groups: Array<[ToolDef[], string]> = [
   [officeDefs, "AI 办公"], [mediaDefs, "AI 图像"], [codeDefs, "AI 编程"],
 ];
 
-export const catalogTools: CatalogTool[] = groups.flatMap(([defs, category], groupIndex) =>
+const allCatalogTools: CatalogTool[] = groups.flatMap(([defs, category], groupIndex) =>
   defs.map((def, index) => buildTool(def, category, groupIndex * 20 + index)),
-).map((tool) => tool.slug === "gsou-thesis-review" ? {
+);
+
+export const catalogTools: CatalogTool[] = allCatalogTools.filter((tool) => selectedToolSlugSet.has(tool.slug)).map((tool) => tool.slug === "gsou-thesis-review" ? {
   ...tool,
   subCategories: ["高校 AI 应用", "论文评阅", "教学科研工具", "Word 批注", "格式检查", "教师助手"],
   longDescription: `${tool.shortDescription} 这是甘肃开放大学相关 AI 应用成果与校内 AI 应用探索平台，可用于毕业论文初稿检查、格式规范检查、论文批注与修改建议、教师辅助评阅、学生修改反馈、教学质量监控和论文过程管理。`,
@@ -227,28 +232,33 @@ export const catalogTools: CatalogTool[] = groups.flatMap(([defs, category], gro
   targetUsers: ["高校教师", "学生", "教学管理人员", "开发者"],
   recommendationLevel: 95,
   isFeatured: true,
-} : tool);
+} : tool).map((tool) => {
+  const matchedTasks = taskRecommendations.filter((task) => task.tools.some((item) => item.slug === tool.slug));
+  return {
+    ...tool,
+    useCases: [...new Set([...matchedTasks.map((task) => task.label), ...tool.useCases])],
+    strengths: curatedStrengths[tool.slug] || tool.strengths,
+    bestFor: matchedTasks.length ? matchedTasks.map((task) => `${task.label}：${task.description}`) : tool.bestFor,
+    isFeatured: true,
+  };
+});
 
 export const featuredTools = catalogTools.filter((tool) => tool.isFeatured).sort((a, b) => b.recommendationLevel - a.recommendationLevel);
 
 export const comparisonsSeed = [
-  ["ChatGPT vs Claude vs Gemini vs DeepSeek vs Kimi", "global-models", ["ChatGPT", "Claude", "Gemini", "DeepSeek", "Kimi"], "通用 AI 助手怎么选"],
-  ["DeepSeek vs Kimi vs 通义千问 vs 豆包", "domestic-assistants", ["DeepSeek", "Kimi", "通义千问", "豆包"], "中文通用助手"],
-  ["Dify vs Coze vs FastGPT", "agent-platforms", ["Dify", "扣子 Coze", "FastGPT"], "搭建 Agent 与知识库"],
-  ["Cursor vs Codex vs Trae vs Windsurf", "coding-agents", ["Cursor", "Codex", "Trae", "Windsurf"], "AI 编程"],
-  ["Midjourney vs 即梦 AI vs 可灵 AI vs 通义万相", "visual-generation", ["Midjourney", "即梦 AI", "可灵 AI", "通义万相"], "图片与视频创作"],
-  ["秘塔 AI 搜索 vs 纳米 AI 搜索 vs Kimi Deep Research", "ai-search", ["秘塔 AI 搜索", "纳米 AI 搜索", "Kimi Deep Research"], "深度搜索与研究"],
-  ["WPS AI vs 飞书 AI vs 钉钉 AI", "office-suites", ["WPS AI", "飞书 AI", "钉钉 AI"], "企业与团队办公"],
-  ["AI Agent 平台横评", "china-agent-platforms", ["扣子 Coze", "腾讯元器", "Dify", "FastGPT", "国家开放大学 AI 基座平台"], "智能体平台"],
+  ["Kimi vs 通义千问 vs 豆包", "writing-assistants", ["Kimi", "通义千问", "豆包"], "中文材料写作"],
+  ["WPS AI vs 讯飞智文 vs 百度文库 AI", "ppt-tools", ["WPS AI", "讯飞智文", "百度文库 AI"], "AI 生成 PPT"],
+  ["Trae vs 通义灵码 vs DeepSeek", "coding-tools", ["Trae", "通义灵码", "DeepSeek"], "AI 编程"],
+  ["Dify vs 扣子 Coze vs 国家开放大学 AI 基座平台", "agent-platforms", ["Dify", "扣子 Coze", "国家开放大学 AI 基座平台"], "智能体搭建"],
+  ["即梦 AI vs 通义万相 vs LiblibAI", "image-generation", ["即梦 AI", "通义万相", "LiblibAI"], "图片生成"],
+  ["可灵 AI vs 即梦 AI vs 海螺 AI 视频", "video-generation", ["可灵 AI", "即梦 AI", "海螺 AI 视频"], "视频生成"],
+  ["秘塔 AI 搜索 vs Kimi Deep Research", "ai-search", ["秘塔 AI 搜索", "Kimi Deep Research"], "搜索与研究"],
 ] as const;
 
-export const useCasesSeed = [
-  "写公文材料", "写工作总结", "做 PPT", "做 Excel 数据分析", "写代码", "做小程序", "做 AI Agent", "做知识库问答", "做论文阅读",
-  "做文献综述", "做 AI 图片", "做 AI 视频", "做短视频", "做会议纪要", "做学校行政办公", "做高校教学课件", "做数据可视化", "做本地大模型部署",
-].map((title, index) => ({
-  title, slug: `guide-${index + 1}`, scenario: title,
-  description: `围绕“${title}”任务，从效果、成本、中文体验与数据安全四个维度给出可执行的工具组合。`,
-  recommendedTools: title.includes("论文") ? ["甘肃开放大学论文 AI 评阅平台", "Kimi", "通义千问"] : title.includes("学校") || title.includes("高校") ? ["国家开放大学 AI 基座平台", "甘肃开放大学论文 AI 评阅平台", "WPS AI"] : title.includes("代码") || title.includes("小程序") ? ["Trae", "通义灵码", "DeepSeek"] : title.includes("图片") ? ["即梦 AI", "通义万相", "LiblibAI"] : title.includes("视频") || title.includes("短视频") ? ["可灵 AI", "海螺 AI 视频", "剪映 AI"] : title.includes("Agent") || title.includes("知识库") ? ["国家开放大学 AI 基座平台", "Dify", "FastGPT"] : ["Kimi", "通义千问", "豆包"],
+export const useCasesSeed = taskRecommendations.map((task) => ({
+  title: task.label, slug: task.slug, scenario: task.label,
+  description: task.description,
+  recommendedTools: task.tools.map(({ slug }) => catalogTools.find((tool) => tool.slug === slug)?.name).filter((name): name is string => Boolean(name)),
   freeSolution: "先使用产品免费额度完成小规模验证。", domesticSolution: "优先选择中文体验完整、使用入口清晰并支持本地支付的产品。",
   strongestSolution: "组合专业工具与高能力模型，并保留人工复核环节。", lowCostSolution: "使用开源模型或按量 API，设置预算上限。",
   governmentEducationSolution: "优先选择可签署数据协议、支持私有化或机构采购的国内服务。",
@@ -265,12 +275,7 @@ export const newsSeed = [
   category: category as string, importanceScore: 5 - (index % 3), relatedTools: relatedTools as string[], publishedAt: new Date(Date.now() - index * 86400000), isPinned: index < 2,
 }));
 
-export const rankingSeeds = [
-  ["中文写作榜", "chinese-writing", "中文长文、改写与表达"], ["公文材料榜", "official-writing", "结构化材料与正式表达"], ["代码开发榜", "coding", "编码、调试与项目理解"],
-  ["AI 搜索榜", "ai-search", "联网搜索与来源整理"], ["AI Agent 榜", "ai-agent", "智能体与工作流搭建"], ["图片生成榜", "image", "中文提示词与视觉质量"],
-  ["视频生成榜", "video", "运动表现与可控生成"], ["免费可用榜", "free", "免费额度与使用门槛"], ["中文模型榜", "domestic", "中文模型综合能力"],
-  ["高校办公推荐榜", "education-office", "高校教学与行政办公"], ["开发者 API 推荐榜", "developer-api", "稳定性、成本与开发体验"],
-] as const;
+export const rankingSeeds = taskRecommendations.map((task) => [`${task.label}精选榜`, task.slug, task.description] as const);
 
 export const modelSeeds = [
   { name: "DeepSeek R1", provider: "深度求索", modelType: "推理模型", strengths: ["复杂推理", "代码"], weaknesses: ["高峰期可能拥堵"], bestUseCases: ["数学", "编程", "分析"], apiAvailable: true },

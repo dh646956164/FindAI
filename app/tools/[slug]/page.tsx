@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowRight, CalendarCheck, Check, CheckCircle2, CircleDollarSign, ExternalLink, Info, Lightbulb, ShieldCheck, Sparkles, Star, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarCheck, Check, CheckCircle2, CircleDollarSign, ExternalLink, Info, Lightbulb, RefreshCw, ShieldCheck, Sparkles, Star, X } from "lucide-react";
 import { ToolAvatar } from "@/components/tool-avatar";
 import { AnimatedSection } from "@/components/animated-section";
 import { BackToToolsLink } from "@/components/back-to-tools-link";
@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pricingLabels } from "@/lib/constants";
-import { getTool } from "@/lib/data";
+import { getTool, getToolIntelligence } from "@/lib/data";
 import { catalogTools } from "@/lib/catalog";
+import { usageTipsByTool } from "@/lib/curated";
 import { resolveOfficialUrl } from "@/lib/tool-links";
 import { formatDate } from "@/lib/utils";
 
@@ -27,6 +28,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function ToolDetailPage({ params }: { params: Params }) {
   const { slug } = await params; const tool = await getTool(slug); if (!tool) notFound();
   const officialUrl = resolveOfficialUrl(tool.slug, tool.officialUrl);
+  const intelligence = getToolIntelligence(tool.slug);
+  const usageTips = usageTipsByTool[tool.slug] || ["先用一份真实但已脱敏的材料完成小样测试。", "核对事实、数据、引用和授权后再用于正式工作。"];
   const capabilityGroups = [
     ["内容与理解", [["文件上传",tool.supportsFileUpload],["联网搜索",tool.supportsWebSearch],["图片理解",tool.supportsImageUnderstanding],["图片生成",tool.supportsImageGeneration],["视频生成",tool.supportsVideoGeneration]]],
     ["语音与接口", [["语音输入",tool.supportsVoiceInput],["语音合成",tool.supportsTextToSpeech],["API",tool.supportsApi],["插件",tool.supportsPlugins],["MCP",tool.supportsMcp]]],
@@ -44,6 +47,8 @@ export default async function ToolDetailPage({ params }: { params: Params }) {
     <div className="container grid gap-6 py-10 lg:grid-cols-[1fr_320px]">
       <div className="space-y-6">
         <Card><CardHeader><CardTitle className="flex items-center gap-2"><Info className="size-5 text-primary" />产品介绍</CardTitle></CardHeader><CardContent><p className="leading-8 text-muted-foreground">{tool.longDescription}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Lightbulb className="size-5 text-amber-500" />推荐使用方法</CardTitle></CardHeader><CardContent><ol className="grid gap-3 md:grid-cols-2">{usageTips.map((tip,index) => <li key={tip} className="flex gap-3 rounded-2xl bg-slate-50 p-4 text-sm leading-7"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-xs font-black text-white">{index + 1}</span><span>{tip}</span></li>)}</ol></CardContent></Card>
+        {intelligence && <Card className="border-indigo-100 bg-gradient-to-br from-indigo-50/60 to-white"><CardHeader><CardTitle className="flex items-center gap-2"><RefreshCw className="size-5 text-primary" />每日信息核验</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><Badge variant={intelligence.httpStatus && intelligence.httpStatus < 400 ? "success" : "outline"}>{intelligence.lastCheckedAt ? "官方页面已连接" : "等待下次自动核验"}</Badge>{intelligence.lastCheckedAt && <span>最近成功：{formatDate(intelligence.lastCheckedAt)}</span>}</div>{intelligence.officialSummary && <p className="text-sm leading-7 text-slate-600">{intelligence.officialSummary}</p>}{intelligence.latestHeadline && intelligence.latestHeadlineUrl && <a href={intelligence.latestHeadlineUrl} target="_blank" rel="noopener noreferrer" className="flex items-start justify-between gap-4 rounded-xl border bg-white p-4 text-sm font-semibold hover:border-primary/30 hover:text-primary"><span><span className="mb-1 block text-xs font-normal text-muted-foreground">最新公开动态</span>{intelligence.latestHeadline}</span><ExternalLink className="mt-1 size-4 shrink-0" /></a>}<p className="text-xs leading-6 text-muted-foreground">自动任务每天检查官网和公开动态；自动摘要只提示变化，能力结论与正式使用仍需人工复核。</p></CardContent></Card>}
         <Card><CardHeader><CardTitle>账号与付费信息</CardTitle></CardHeader><CardContent className="grid gap-x-10 gap-y-4 sm:grid-cols-2"><InfoRow label="需要登录" value={tool.requiresLogin} /><InfoRow label="需要手机号" value={tool.requiresPhone} /><InfoRow label="中文界面" value={tool.chineseInterface} /><InfoRow label="提供免费版" value={tool.freePlan} /><InfoRow label="微信支付" value={tool.supportsWechatPay} /><InfoRow label="支付宝" value={tool.supportsAlipay} /><div className="sm:col-span-2 rounded-xl bg-muted p-4"><p className="text-xs font-semibold text-muted-foreground">免费额度说明</p><p className="mt-2 text-sm leading-6">{tool.freeQuota}</p></div></CardContent></Card>
         <Card><CardHeader><CardTitle>能力矩阵</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-3">{capabilityGroups.map(([title, items]) => <div key={title} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"><p className="mb-3 text-sm font-bold">{title}</p><div className="flex flex-wrap gap-2">{items.map(([label,supported]) => <GradientBadge key={label} muted={!supported} className={supported ? "border-transparent bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm" : ""}>{supported ? <Check className="mr-1 size-3"/> : <X className="mr-1 size-3"/>}{label}</GradientBadge>)}</div></div>)}</CardContent></Card>
         <div className="grid gap-6 md:grid-cols-2"><ListCard title="核心优点" icon={CheckCircle2} items={tool.strengths} tone="good" /><ListCard title="需要注意" icon={AlertTriangle} items={tool.weaknesses} tone="warn" /></div>

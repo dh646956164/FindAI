@@ -1,6 +1,7 @@
 import { PrismaClient, DomesticAccessibility, PricingModel } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { catalogTools, comparisonsSeed, modelSeeds, newsSeed, rankingSeeds, useCasesSeed } from "../lib/catalog";
+import { taskRecommendations } from "../lib/curated";
 
 const prisma = new PrismaClient();
 
@@ -84,20 +85,7 @@ async function main() {
 }
 
 function pickRankingTools(slug: string): string[] {
-  const map: Record<string, string[]> = {
-    "chinese-writing": ["kimi", "tongyi-qianwen", "doubao", "deepseek", "chatglm"],
-    "official-writing": ["tongyi-qianwen", "deepseek", "wps-ai", "iflytek-spark", "doubao"],
-    coding: ["trae", "tongyi-lingma", "deepseek-coder-api", "codegeex", "codebuddy"],
-    "ai-search": ["metaso", "kimi-deep-research", "nami-search", "tiangong-search", "baidu-ai-search"],
-    "ai-agent": ["ouchn-ai-base", "dify", "coze", "fastgpt", "tencent-yuanqi"],
-    image: ["jimeng-ai", "tongyi-wanxiang", "liblibai", "yige", "gaoding-ai"],
-    video: ["kling-ai", "hailuo-video", "jimeng-ai", "capcut-ai-cn", "muse-steamer"],
-    free: ["deepseek", "doubao", "tongyi-qianwen", "kimi", "metaso"],
-    domestic: ["deepseek", "tongyi-qianwen", "doubao", "kimi", "iflytek-spark"],
-    "education-office": ["gsou-thesis-review", "ouchn-ai-base", "wps-ai", "kimi", "tongyi-qianwen"],
-    "developer-api": ["siliconflow", "volcengine-ark", "aliyun-bailian", "deepseek-coder-api", "bigmodel"],
-  };
-  return map[slug] || ["deepseek", "kimi", "doubao", "tongyi-qianwen", "dify"];
+  return taskRecommendations.find((task) => task.slug === slug)?.tools.map((tool) => tool.slug) || [];
 }
 
 function rankingReason(slug: string, name: string) {

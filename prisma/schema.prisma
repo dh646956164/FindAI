@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+}
+
+enum DomesticAccessibility {
+  DIRECT
+  SPECIAL_NETWORK
+  UNSTABLE
+  NOT_RECOMMENDED
+  UNKNOWN
+}
+
+enum PricingModel {
+  FREE
+  FREEMIUM
+  PAID
+  OPEN_SOURCE
+  ENTERPRISE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model AiTool {
+  id                         String                @id @default(cuid())
+  name                       String
+  slug                       String                @unique
+  logoUrl                    String?
+  company                    String
+  country                    String                @default("中国")
+  officialUrl                String?
+  category                   String
+  subCategories              String[]
+  shortDescription           String
+  longDescription            String                @db.Text
+  domesticAccessibility      DomesticAccessibility @default(UNKNOWN)
+  requiresLogin              Boolean               @default(true)
+  requiresPhone              Boolean               @default(false)
+  supportsChinaPhone         Boolean               @default(true)
+  supportsWechatPay          Boolean               @default(false)
+  supportsAlipay             Boolean               @default(false)
+  pricingModel               PricingModel          @default(FREEMIUM)
+  freePlan                   Boolean               @default(true)
+  freeQuota                  String?
+  paidPlanDescription        String?
+  chineseInterface           Boolean               @default(true)
+  chineseInputOutput         Boolean               @default(true)
+  supportsFileUpload         Boolean               @default(false)
+  supportsWebSearch          Boolean               @default(false)
+  supportsImageUnderstanding Boolean               @default(false)
+  supportsImageGeneration    Boolean               @default(false)
+  supportsVideoGeneration    Boolean               @default(false)
+  supportsVoiceInput         Boolean               @default(false)
+  supportsTextToSpeech       Boolean               @default(false)
+  supportsApi                Boolean               @default(false)
+  supportsAgent              Boolean               @default(false)
+  supportsKnowledgeBase      Boolean               @default(false)
+  supportsWorkflow           Boolean               @default(false)
+  supportsMcp                Boolean               @default(false)
+  supportsPlugins            Boolean               @default(false)
+  supportsPrivateDeployment  Boolean               @default(false)
+  supportsLocalDeployment    Boolean               @default(false)
+  useCases                   String[]
+  targetUsers                String[]
+  strengths                  String[]
+  weaknesses                 String[]
+  bestFor                    String[]
+  notFor                     String[]
+  complianceNotes            String?
+  domesticAlternatives       String[]
+  internationalAlternatives  String[]
+  rating                     Float                 @default(4)
+  recommendationLevel        Int                   @default(80)
+  isFeatured                 Boolean               @default(false)
+  agentType                   String?
+  lastCheckedAt              DateTime               @default(now())
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+  rankingItems               RankingItem[]
+
+  @@index([category])
+  @@index([domesticAccessibility])
+  @@index([pricingModel])
+  @@map("ai_tools")
+}
+
+model AiModel {
+  id                    String                @id @default(cuid())
+  name                  String
+  provider              String
+  modelType             String
+  contextWindow         String?
+  strengths             String[]
+  weaknesses            String[]
+  pricingInput          String?
+  pricingOutput         String?
+  apiAvailable          Boolean               @default(false)
+  domesticAccessibility DomesticAccessibility @default(UNKNOWN)
+  bestUseCases          String[]
+  benchmarkNotes        String?
+  lastUpdatedAt         DateTime              @default(now())
+  rankingItems          RankingItem[]
+
+  @@unique([name, provider])
+  @@map("ai_models")
+}
+
+model Ranking {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  description String
+  category    String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  items       RankingItem[]
+
+  @@map("rankings")
+}
+
+model RankingItem {
+  id        String   @id @default(cuid())
+  rankingId String
+  toolId    String?
+  modelId   String?
+  rank      Int
+  score     Float
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ranking   Ranking  @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+  tool      AiTool?  @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  model     AiModel? @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([rankingId, rank])
+  @@map("ranking_items")
+}
+
+model Comparison {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  toolsCompared String[]
+  scenario      String
+  summary       String
+  conclusion    String    @db.Text
+  content       String    @db.Text
+  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+
+  @@map("comparisons")
+}
+
+model UseCaseGuide {
+  id                          String   @id @default(cuid())
+  title                       String
+  slug                        String   @unique
+  scenario                    String
+  description                 String   @db.Text
+  recommendedTools            String[]
+  freeSolution                String
+  domesticSolution            String
+  strongestSolution           String
+  lowCostSolution             String
+  governmentEducationSolution String
+  steps                       String[]
+  cautions                    String[]
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@map("use_case_guides")
+}
+
+model AiNews {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  source          String
+  sourceUrl       String?
+  summary         String   @db.Text
+  category        String
+  importanceScore Int      @default(3)
+  relatedTools    String[]
+  publishedAt     DateTime
+  isPinned        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([publishedAt])
+  @@map("ai_news")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  type      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tags")
+}

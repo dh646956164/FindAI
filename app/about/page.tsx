@@ -11,7 +11,7 @@ export default function AboutPage() {
   return <div className="container max-w-5xl py-16">
     <Badge>关于综合平台</Badge>
     <h1 className="mt-6 max-w-4xl text-balance text-4xl font-black leading-[1.18] md:text-6xl">让 AI 工具选型<span className="text-primary">少一点噪音，多一点证据</span></h1>
-    <p className="mt-7 max-w-3xl text-lg leading-9 text-muted-foreground">平台面向中文用户和高校师生，从真实任务出发，汇聚大模型、智能体与各类 AI 应用的能力、价格、适用边界和使用入口。</p>
+    <p className="mt-7 max-w-3xl text-lg leading-9 text-muted-foreground">平台面向高校师生，从真实任务出发，汇聚大模型、智能体与各类 AI 应用的能力、价格、适用边界和使用入口。</p>
 
     <div className="relative mt-12 overflow-hidden rounded-3xl bg-slate-950 p-8 text-white md:p-10">
       <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: `url('${assetPath("/brand/gsou-city-banner.jpg")}')` }} />
